@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mimic & Splash Lobby</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #lobby-area { display: none; margin-top: 20px; display: flex; flex-direction: column; align-items: center; }
+        ul { list-style: none; padding: 0; width: 300px; }
+        li { background: #eee; margin: 5px auto; padding: 10px; border-radius: 5px; }
+        
+        /* Gaya baru untuk kotak chat */
+        #chat-box { width: 300px; height: 150px; overflow-y: scroll; border: 1px solid #ccc; text-align: left; padding: 10px; margin-top: 20px; background: #fafafa;}
+        #chat-input-area { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Mimic & Splash</h1>
+    
+    <div id="login-area">
+        <input type="text" id="nama" placeholder="Ketik nama kamu...">
+        <button onclick="gabungLobby()">Masuk Lobby</button>
+    </div>
+
+    <!-- Area Lobby (Daftar Pemain + Chat) -->
+    <div id="lobby-area" style="display: none;">
+        <h2>Pemain yang Siap:</h2>
+        <ul id="daftar-pemain"></ul>
+
+        <!-- Fitur Chat Baru -->
+        <div id="chat-box"></div>
+        <div id="chat-input-area">
+            <input type="text" id="input-pesan" placeholder="Ketik pesan..." onkeypress="tekanEnter(event)">
+            <button onclick="kirimPesan()">Kirim</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let namaSaya = ""; // Variabel untuk menyimpan nama Anda
+
+        function gabungLobby() {
+            const nama = document.getElementById('nama').value;
+            if(!nama) return alert("Nama harus diisi!");
+
+            namaSaya = nama; // Simpan nama
+            socket.emit('masuk_lobby', nama);
+            
+            document.getElementById('login-area').style.display = 'none';
+            document.getElementById('lobby-area').style.display = 'flex';
+        }
+
+        socket.on('update_lobby', (pemainLobby) => {
+            const list = document.getElementById('daftar-pemain');
+            list.innerHTML = "";
+            pemainLobby.forEach(pemain => {
+                const li = document.createElement('li');
+                li.innerText = pemain.nama;
+                list.appendChild(li);
+            });
+        });
+
+        // --- FUNGSI CHAT BARU ---
+        
+        // Mengirim pesan ke server
+        function kirimPesan() {
+            const input = document.getElementById('input-pesan');
+            const teksPesan = input.value;
+            
+            if(teksPesan.trim() !== "") {
+                socket.emit('kirim_pesan', { nama: namaSaya, teks: teksPesan });
+                input.value = ""; // Kosongkan kolom input setelah kirim
+            }
+        }
+
+        // Agar bisa kirim pesan pakai tombol Enter
+        function tekanEnter(event) {
+            if (event.key === "Enter") {
+                kirimPesan();
+            }
+        }
+
+        // Menerima pesan dari server dan menampilkannya
+        socket.on('terima_pesan', (data) => {
+            const chatBox = document.getElementById('chat-box');
+            // Menambahkan paragraf baru berisi nama dan pesan
+            chatBox.innerHTML += `<p style="margin: 5px 0;"><strong>${data.nama}:</strong> ${data.teks}</p>`;
+            // Otomatis scroll ke bawah agar pesan terbaru terlihat
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    </script>
+</body>
+</html>
